@@ -1,0 +1,56 @@
+# Daily: is there an upstream Chatwoot release we haven't built yet?
+# With secret SYNC_TOKEN (repo + workflow scope) it runs eclix/sync.sh, whose
+# tag push starts eclix-build.yml. Without it, it opens an issue instead.
+name: Eclix upstream release check
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      # A step's own env is not visible to its `if:`, so expose this at job level.
+      HAS_SYNC_TOKEN: ${{ secrets.SYNC_TOKEN != '' }}
+    steps:
+      - name: Find latest upstream release
+        id: rel
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          latest=$(gh api repos/chatwoot/chatwoot/releases/latest --jq .tag_name)
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          if gh api "repos/${{ github.repository }}/git/ref/tags/${latest}-eclix1" >/dev/null 2>&1; then
+            echo "new=false" >> "$GITHUB_OUTPUT"; echo "$latest already built"
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"; echo "$latest not built yet"
+          fi
+
+      - name: Sync automatically
+        if: steps.rel.outputs.new == 'true' && env.HAS_SYNC_TOKEN == 'true'
+        env:
+          SYNC_TOKEN: ${{ secrets.SYNC_TOKEN }}
+        run: |
+          git clone -q --filter=blob:none "https://x-access-token:${SYNC_TOKEN}@github.com/${{ github.repository }}.git" repo
+          cd repo && git checkout -q eclix
+          git config user.name "eclix-sync" && git config user.email "eclix-sync@users.noreply.github.com"
+          eclix/sync.sh "${{ steps.rel.outputs.latest }}"
+
+      - name: Open an issue instead
+        if: steps.rel.outputs.new == 'true' && env.HAS_SYNC_TOKEN != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LATEST: ${{ steps.rel.outputs.latest }}
+        run: |
+          title="Chatwoot $LATEST released — build ${LATEST}-eclix1"
+          if gh issue list -R "${{ github.repository }}" --state open --search "\"$title\" in:title" --json number --jq 'length' | grep -qx 0; then
+            gh issue create -R "${{ github.repository }}" --title "$title" --body "Upstream release: https://github.com/chatwoot/chatwoot/releases/tag/$LATEST
+
+          Read the release notes, then run \`eclix/sync.sh $LATEST\` locally (see eclix/README.md) and deploy the new image on support.eclixtech.com."
+          fi
