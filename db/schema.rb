@@ -1097,6 +1097,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_10_09_170254) do
     t.index ["copilot_thread_id"], name: "index_copilot_runs_on_copilot_thread_id"
     t.index ["copilot_tool_call_id"], name: "index_copilot_runs_on_copilot_tool_call_id", unique: true
     t.index ["source_run_id"], name: "index_copilot_runs_on_source_run_id"
+    t.index ["status"], name: "index_copilot_runs_awaiting_approval", where: "((status)::text = 'awaiting_approval'::text)"
     t.index ["status"], name: "index_copilot_runs_claimable", where: "((status)::text = ANY ((ARRAY['queued'::character varying, 'running'::character varying])::text[]))"
     t.index ["user_id"], name: "index_copilot_runs_on_user_id"
   end
