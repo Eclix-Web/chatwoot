@@ -1,0 +1,361 @@
+diff --git a/app/builders/email/from_builder.rb b/app/builders/email/from_builder.rb
+index fff33dc0a..d80b6b96c 100644
+--- a/app/builders/email/from_builder.rb
++++ b/app/builders/email/from_builder.rb
+@@ -2,6 +2,7 @@ class Email::FromBuilder < Email::BaseBuilder
+   pattr_initialize [:inbox!, :message!]
+ 
+   def build
++    return sender_name(parse_email(channel.smtp_from_email)) if inbox.web_widget? && channel.smtp_enabled
+     return sender_name(account_support_email) unless inbox.email?
+ 
+     from_email = case email_channel_type
+diff --git a/app/builders/email/reply_to_builder.rb b/app/builders/email/reply_to_builder.rb
+index d330c922a..10cb304ea 100644
+--- a/app/builders/email/reply_to_builder.rb
++++ b/app/builders/email/reply_to_builder.rb
+@@ -6,6 +6,8 @@ class Email::ReplyToBuilder < Email::BaseBuilder
+                  channel.email
+                elsif inbound_email_enabled?
+                  "reply+#{conversation.uuid}@#{account.inbound_email_domain}"
++               elsif inbox.web_widget? && channel.smtp_enabled
++                 channel.smtp_from_email
+                else
+                  account_support_email
+                end
+diff --git a/app/javascript/dashboard/i18n/locale/en/inboxMgmt.json b/app/javascript/dashboard/i18n/locale/en/inboxMgmt.json
+index 2bf76a1d6..12cbeb8dd 100644
+--- a/app/javascript/dashboard/i18n/locale/en/inboxMgmt.json
++++ b/app/javascript/dashboard/i18n/locale/en/inboxMgmt.json
+@@ -1482,6 +1482,11 @@
+         "SUCCESS_MESSAGE": "SMTP settings updated successfully",
+         "ERROR_MESSAGE": "Unable to update SMTP settings"
+       },
++      "FROM_EMAIL": {
++        "LABEL": "From email",
++        "PLACE_HOLDER": "support@example.com",
++        "HELP_TEXT": "Emails from this inbox (replies to offline visitors, transcripts) are sent from this address through the SMTP server below. Use an address the SMTP login is allowed to send as."
++      },
+       "ADDRESS": {
+         "LABEL": "Address",
+         "PLACE_HOLDER": "Address (Eg: smtp.gmail.com)"
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/inbox/SmtpSettings.vue b/app/javascript/dashboard/routes/dashboard/settings/inbox/SmtpSettings.vue
+index e8bc723c2..4a5d0ad39 100644
+--- a/app/javascript/dashboard/routes/dashboard/settings/inbox/SmtpSettings.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/inbox/SmtpSettings.vue
+@@ -3,7 +3,7 @@ import { mapGetters } from 'vuex';
+ import { useAlert } from 'dashboard/composables';
+ import SettingsFieldSection from 'dashboard/components-next/Settings/SettingsFieldSection.vue';
+ import { useVuelidate } from '@vuelidate/core';
+-import { required, minLength } from '@vuelidate/validators';
++import { required, requiredIf, email, minLength } from '@vuelidate/validators';
+ import InputRadioGroup from './components/InputRadioGroup.vue';
+ import SingleSelectDropdown from './components/SingleSelectDropdown.vue';
+ import NextButton from 'dashboard/components-next/button/Button.vue';
+@@ -27,6 +27,7 @@ export default {
+   data() {
+     return {
+       isSMTPEnabled: false,
++      fromEmail: '',
+       address: '',
+       port: '',
+       login: '',
+@@ -57,18 +58,24 @@ export default {
+       ],
+     };
+   },
+-  validations: {
+-    address: { required },
+-    port: {
+-      required,
+-      minLength: minLength(2),
+-    },
+-    login: { required },
+-    password: { required },
+-    domain: { required },
++  validations() {
++    return {
++      fromEmail: { required: requiredIf(this.isAWebWidgetInbox), email },
++      address: { required },
++      port: {
++        required,
++        minLength: minLength(2),
++      },
++      login: { required },
++      password: { required },
++      domain: { required },
++    };
+   },
+   computed: {
+     ...mapGetters({ uiFlags: 'inboxes/getUIFlags' }),
++    isAWebWidgetInbox() {
++      return this.inbox.channel_type === 'Channel::WebWidget';
++    },
+   },
+   watch: {
+     inbox() {
+@@ -82,6 +89,7 @@ export default {
+     setDefaults() {
+       const {
+         smtp_enabled,
++        smtp_from_email,
+         smtp_address,
+         smtp_port,
+         smtp_login,
+@@ -93,6 +101,7 @@ export default {
+         smtp_authentication,
+       } = this.inbox;
+       this.isSMTPEnabled = smtp_enabled;
++      this.fromEmail = smtp_from_email;
+       this.address = smtp_address;
+       this.port = smtp_port;
+       this.login = smtp_login;
+@@ -132,6 +141,7 @@ export default {
+         const payload = {
+           id: this.inbox.id,
+           channel: {
++            ...(this.isAWebWidgetInbox && { smtp_from_email: this.fromEmail }),
+             smtp_enabled: this.isSMTPEnabled,
+             smtp_address: this.address,
+             smtp_port: this.port,
+@@ -174,6 +184,16 @@ export default {
+       </label>
+       <p>{{ $t('INBOX_MGMT.SMTP.TOGGLE_HELP') }}</p>
+       <div v-if="isSMTPEnabled" class="mb-6">
++        <woot-input
++          v-if="isAWebWidgetInbox"
++          v-model="fromEmail"
++          :class="{ error: v$.fromEmail.$error }"
++          class="w-full"
++          :label="$t('INBOX_MGMT.SMTP.FROM_EMAIL.LABEL')"
++          :placeholder="$t('INBOX_MGMT.SMTP.FROM_EMAIL.PLACE_HOLDER')"
++          :help-text="$t('INBOX_MGMT.SMTP.FROM_EMAIL.HELP_TEXT')"
++          @blur="v$.fromEmail.$touch"
++        />
+         <woot-input
+           v-model="address"
+           :class="{ error: v$.address.$error }"
+diff --git a/app/javascript/dashboard/routes/dashboard/settings/inbox/settingsPage/ConfigurationPage.vue b/app/javascript/dashboard/routes/dashboard/settings/inbox/settingsPage/ConfigurationPage.vue
+index f4712c154..9ddc41a44 100644
+--- a/app/javascript/dashboard/routes/dashboard/settings/inbox/settingsPage/ConfigurationPage.vue
++++ b/app/javascript/dashboard/routes/dashboard/settings/inbox/settingsPage/ConfigurationPage.vue
+@@ -324,6 +324,7 @@ export default {
+         "
+       />
+     </SettingsAccordion>
++    <SmtpSettings :inbox="inbox" class="mt-6" />
+   </div>
+   <div v-else-if="isAPIInbox">
+     <SettingsFieldSection
+diff --git a/app/mailers/conversation_reply_mailer.rb b/app/mailers/conversation_reply_mailer.rb
+index 70963a0f7..fc7e40f87 100644
+--- a/app/mailers/conversation_reply_mailer.rb
++++ b/app/mailers/conversation_reply_mailer.rb
+@@ -10,9 +10,8 @@ class ConversationReplyMailer < ApplicationMailer
+   layout :choose_layout
+ 
+   def reply_with_summary(conversation, last_queued_id)
+-    return unless smtp_config_set_or_development?
+-
+     init_conversation_attributes(conversation)
++    return unless smtp_config_set_or_development? || widget_smtp_enabled?
+     return if conversation_already_viewed?
+ 
+     recap_messages = @conversation.messages.chat.where('id < ?', last_queued_id).last(10)
+@@ -23,9 +22,8 @@ class ConversationReplyMailer < ApplicationMailer
+   end
+ 
+   def reply_without_summary(conversation, last_queued_id)
+-    return unless smtp_config_set_or_development?
+-
+     init_conversation_attributes(conversation)
++    return unless smtp_config_set_or_development? || widget_smtp_enabled?
+     return if conversation_already_viewed?
+ 
+     @messages = @conversation.messages.chat.where(message_type: [:outgoing, :template]).where('id >= ?', last_queued_id)
+@@ -44,20 +42,18 @@ class ConversationReplyMailer < ApplicationMailer
+   end
+ 
+   def conversation_transcript(conversation, to_email)
+-    return unless smtp_config_set_or_development?
+-
+     init_conversation_attributes(conversation)
++    return unless smtp_config_set_or_development? || widget_smtp_enabled?
+ 
+     @messages = @conversation.messages.chat.select(&:conversation_transcriptable?)
+ 
+     Rails.logger.info("Email sent from #{from_email_with_name} \
+       to #{to_email} with subject #{@conversation.display_id} \
+       #{I18n.t('conversations.reply.transcript_subject')} ")
+-    mail({
+-           to: to_email,
+-           from: from_email_with_name,
+-           subject: "[##{@conversation.display_id}] #{I18n.t('conversations.reply.transcript_subject')}"
+-         })
++    @options = { to: to_email, from: from_email_with_name,
++                 subject: "[##{@conversation.display_id}] #{I18n.t('conversations.reply.transcript_subject')}" }
++    set_delivery_method
++    mail(@options)
+   end
+ 
+   private
+@@ -116,6 +112,8 @@ class ConversationReplyMailer < ApplicationMailer
+   end
+ 
+   def from_email
++    return parse_email(@channel.smtp_from_email) if widget_smtp_enabled?
++
+     should_use_conversation_email_address? ? parse_email(@account.support_email) : parse_email(inbox_from_email_address)
+   end
+ 
+@@ -134,6 +132,8 @@ class ConversationReplyMailer < ApplicationMailer
+   def reply_email
+     if should_use_conversation_email_address?
+       sender_name("reply+#{@conversation.uuid}@#{@account.inbound_email_domain}")
++    elsif widget_smtp_enabled?
++      @channel.smtp_from_email
+     else
+       @inbox.email_address || @agent&.email
+     end
+diff --git a/app/mailers/conversation_reply_mailer_helper.rb b/app/mailers/conversation_reply_mailer_helper.rb
+index 88266c14d..f8efdfc22 100644
+--- a/app/mailers/conversation_reply_mailer_helper.rb
++++ b/app/mailers/conversation_reply_mailer_helper.rb
+@@ -60,7 +60,7 @@ module ConversationReplyMailerHelper
+   end
+ 
+   def set_delivery_method
+-    return unless @inbox.inbox_type == 'Email' && @channel.smtp_enabled
++    return unless email_smtp_enabled? || widget_smtp_enabled?
+ 
+     smtp_settings = {
+       address: @channel.smtp_address,
+@@ -90,6 +90,10 @@ module ConversationReplyMailerHelper
+     @inbox.inbox_type == 'Email' && @channel.smtp_enabled
+   end
+ 
++  def widget_smtp_enabled?
++    @inbox.web_widget? && @channel.smtp_enabled
++  end
++
+   def email_imap_enabled?
+     @inbox.inbox_type == 'Email' && @channel.imap_enabled
+   end
+diff --git a/app/models/channel/web_widget.rb b/app/models/channel/web_widget.rb
+index d977efa38..e7aaed350 100644
+--- a/app/models/channel/web_widget.rb
++++ b/app/models/channel/web_widget.rb
+@@ -11,6 +11,17 @@
+ #  pre_chat_form_enabled :boolean          default(FALSE)
+ #  pre_chat_form_options :jsonb
+ #  reply_time            :integer          default("in_a_few_minutes")
++#  smtp_address              :string           default("")
++#  smtp_authentication       :string           default("login")
++#  smtp_domain               :string           default("")
++#  smtp_enable_ssl_tls       :boolean          default(FALSE), not null
++#  smtp_enable_starttls_auto :boolean          default(TRUE), not null
++#  smtp_enabled              :boolean          default(FALSE), not null
++#  smtp_from_email           :string           default("")
++#  smtp_login                :string           default("")
++#  smtp_openssl_verify_mode  :string           default("none")
++#  smtp_password             :string           default("")
++#  smtp_port                 :integer          default(0)
+ #  website_token         :string
+ #  website_url           :string
+ #  welcome_tagline       :string
+@@ -30,9 +41,13 @@ class Channel::WebWidget < ApplicationRecord
+   include Channelable
+   include FlagShihTzu
+ 
++  encrypts :smtp_password if Chatwoot.encryption_configured?
++
+   self.table_name = 'channel_web_widgets'
+   EDITABLE_ATTRS = [:website_url, :widget_color, :welcome_title, :welcome_tagline, :reply_time, :pre_chat_form_enabled,
+                     :continuity_via_email, :hmac_mandatory, :allowed_domains,
++                    :smtp_enabled, :smtp_from_email, :smtp_login, :smtp_password, :smtp_address, :smtp_port, :smtp_domain,
++                    :smtp_enable_starttls_auto, :smtp_enable_ssl_tls, :smtp_openssl_verify_mode, :smtp_authentication,
+                     { pre_chat_form_options: [:pre_chat_message, :require_email,
+                                               { pre_chat_fields:
+                                                 [:field_type, :label, :placeholder, :name, :enabled, :type, :enabled, :required,
+@@ -42,6 +57,7 @@ class Channel::WebWidget < ApplicationRecord
+   before_validation :validate_pre_chat_options
+   validates :website_url, presence: true
+   validates :widget_color, presence: true
++  validates :smtp_from_email, :smtp_address, :smtp_port, :smtp_login, presence: true, if: :smtp_enabled
+   has_many :portals, foreign_key: 'channel_web_widget_id', dependent: :nullify, inverse_of: :channel_web_widget
+ 
+   has_secure_token :website_token
+diff --git a/app/views/api/v1/models/_inbox.json.jbuilder b/app/views/api/v1/models/_inbox.json.jbuilder
+index 5622b2a35..b99f14dbb 100644
+--- a/app/views/api/v1/models/_inbox.json.jbuilder
++++ b/app/views/api/v1/models/_inbox.json.jbuilder
+@@ -49,6 +49,21 @@ if resource.web_widget?
+   json.pre_chat_form_enabled resource.channel.try(:pre_chat_form_enabled)
+   json.pre_chat_form_options resource.channel.try(:pre_chat_form_options)
+   json.continuity_via_email resource.channel.try(:continuity_via_email)
++
++  ## SMTP (Eclixtech fork: per-inbox outgoing mail for website inboxes)
++  if Current.account_user&.administrator?
++    json.smtp_from_email resource.channel.smtp_from_email
++    json.smtp_login resource.channel.smtp_login
++    json.smtp_password resource.channel.smtp_password
++    json.smtp_address resource.channel.smtp_address
++    json.smtp_port resource.channel.smtp_port
++    json.smtp_enabled resource.channel.smtp_enabled
++    json.smtp_domain resource.channel.smtp_domain
++    json.smtp_enable_ssl_tls resource.channel.smtp_enable_ssl_tls
++    json.smtp_enable_starttls_auto resource.channel.smtp_enable_starttls_auto
++    json.smtp_openssl_verify_mode resource.channel.smtp_openssl_verify_mode
++    json.smtp_authentication resource.channel.smtp_authentication
++  end
+ end
+ 
+ ## Facebook Attributes
+diff --git a/db/migrate/20260830235900_eclix_add_smtp_to_channel_web_widgets.rb b/db/migrate/20260830235900_eclix_add_smtp_to_channel_web_widgets.rb
+new file mode 100644
+index 000000000..a40fa105e
+--- /dev/null
++++ b/db/migrate/20260830235900_eclix_add_smtp_to_channel_web_widgets.rb
+@@ -0,0 +1,20 @@
++# Eclixtech fork: per-inbox outgoing SMTP for website inboxes (eclix/patches/0002).
++# The version is kept below the schema.rb version on purpose, so a fresh
++# schema load marks it as already run and only existing databases migrate.
++class EclixAddSmtpToChannelWebWidgets < ActiveRecord::Migration[7.1]
++  def change
++    change_table :channel_web_widgets, bulk: true do |t|
++      t.boolean :smtp_enabled, default: false, null: false
++      t.string :smtp_from_email, default: ''
++      t.string :smtp_address, default: ''
++      t.integer :smtp_port, default: 0
++      t.string :smtp_login, default: ''
++      t.string :smtp_password, default: ''
++      t.string :smtp_domain, default: ''
++      t.boolean :smtp_enable_ssl_tls, default: false, null: false
++      t.boolean :smtp_enable_starttls_auto, default: true, null: false
++      t.string :smtp_openssl_verify_mode, default: 'none'
++      t.string :smtp_authentication, default: 'login'
++    end
++  end
++end
+diff --git a/db/schema.rb b/db/schema.rb
+index a6711fe01..ef4c0ba25 100644
+--- a/db/schema.rb
++++ b/db/schema.rb
+@@ -732,6 +732,17 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_31_000000) do
+     t.boolean "hmac_mandatory", default: false
+     t.boolean "continuity_via_email", default: true, null: false
+     t.text "allowed_domains", default: ""
++    t.boolean "smtp_enabled", default: false, null: false
++    t.string "smtp_from_email", default: ""
++    t.string "smtp_address", default: ""
++    t.integer "smtp_port", default: 0
++    t.string "smtp_login", default: ""
++    t.string "smtp_password", default: ""
++    t.string "smtp_domain", default: ""
++    t.boolean "smtp_enable_ssl_tls", default: false, null: false
++    t.boolean "smtp_enable_starttls_auto", default: true, null: false
++    t.string "smtp_openssl_verify_mode", default: "none"
++    t.string "smtp_authentication", default: "login"
+     t.index ["hmac_token"], name: "index_channel_web_widgets_on_hmac_token", unique: true
+     t.index ["website_token"], name: "index_channel_web_widgets_on_website_token", unique: true
+   end

@@ -324,6 +324,7 @@ export default {
         "
       />
     </SettingsAccordion>
+    <SmtpSettings :inbox="inbox" class="mt-6" />
   </div>
   <div v-else-if="isAPIInbox">
     <SettingsFieldSection

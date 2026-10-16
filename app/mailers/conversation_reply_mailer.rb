@@ -10,9 +10,8 @@ class ConversationReplyMailer < ApplicationMailer
   layout :choose_layout
 
   def reply_with_summary(conversation, last_queued_id)
-    return unless smtp_config_set_or_development?
-
     init_conversation_attributes(conversation)
+    return unless smtp_config_set_or_development? || widget_smtp_enabled?
     return if conversation_already_viewed?
 
     recap_messages = @conversation.messages.chat.where('id < ?', last_queued_id).last(10)
@@ -23,9 +22,8 @@ class ConversationReplyMailer < ApplicationMailer
   end
 
   def reply_without_summary(conversation, last_queued_id)
-    return unless smtp_config_set_or_development?
-
     init_conversation_attributes(conversation)
+    return unless smtp_config_set_or_development? || widget_smtp_enabled?
     return if conversation_already_viewed?
 
     @messages = @conversation.messages.chat.where(message_type: [:outgoing, :template]).where('id >= ?', last_queued_id)
@@ -44,20 +42,18 @@ class ConversationReplyMailer < ApplicationMailer
   end
 
   def conversation_transcript(conversation, to_email)
-    return unless smtp_config_set_or_development?
-
     init_conversation_attributes(conversation)
+    return unless smtp_config_set_or_development? || widget_smtp_enabled?
 
     @messages = @conversation.messages.chat.select(&:conversation_transcriptable?)
 
     Rails.logger.info("Email sent from #{from_email_with_name} \
       to #{to_email} with subject #{@conversation.display_id} \
       #{I18n.t('conversations.reply.transcript_subject')} ")
-    mail({
-           to: to_email,
-           from: from_email_with_name,
-           subject: "[##{@conversation.display_id}] #{I18n.t('conversations.reply.transcript_subject')}"
-         })
+    @options = { to: to_email, from: from_email_with_name,
+                 subject: "[##{@conversation.display_id}] #{I18n.t('conversations.reply.transcript_subject')}" }
+    set_delivery_method
+    mail(@options)
   end
 
   private
@@ -116,6 +112,8 @@ class ConversationReplyMailer < ApplicationMailer
   end
 
   def from_email
+    return parse_email(@channel.smtp_from_email) if widget_smtp_enabled?
+
     should_use_conversation_email_address? ? parse_email(@account.support_email) : parse_email(inbox_from_email_address)
   end
 
@@ -134,6 +132,8 @@ class ConversationReplyMailer < ApplicationMailer
   def reply_email
     if should_use_conversation_email_address?
       sender_name("reply+#{@conversation.uuid}@#{@account.inbound_email_domain}")
+    elsif widget_smtp_enabled?
+      @channel.smtp_from_email
     else
       @inbox.email_address || @agent&.email
     end

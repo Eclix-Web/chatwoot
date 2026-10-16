@@ -49,6 +49,21 @@ if resource.web_widget?
   json.pre_chat_form_enabled resource.channel.try(:pre_chat_form_enabled)
   json.pre_chat_form_options resource.channel.try(:pre_chat_form_options)
   json.continuity_via_email resource.channel.try(:continuity_via_email)
+
+  ## SMTP (Eclixtech fork: per-inbox outgoing mail for website inboxes)
+  if Current.account_user&.administrator?
+    json.smtp_from_email resource.channel.smtp_from_email
+    json.smtp_login resource.channel.smtp_login
+    json.smtp_password resource.channel.smtp_password
+    json.smtp_address resource.channel.smtp_address
+    json.smtp_port resource.channel.smtp_port
+    json.smtp_enabled resource.channel.smtp_enabled
+    json.smtp_domain resource.channel.smtp_domain
+    json.smtp_enable_ssl_tls resource.channel.smtp_enable_ssl_tls
+    json.smtp_enable_starttls_auto resource.channel.smtp_enable_starttls_auto
+    json.smtp_openssl_verify_mode resource.channel.smtp_openssl_verify_mode
+    json.smtp_authentication resource.channel.smtp_authentication
+  end
 end
 
 ## Facebook Attributes

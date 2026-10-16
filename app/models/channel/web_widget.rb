@@ -11,6 +11,17 @@
 #  pre_chat_form_enabled :boolean          default(FALSE)
 #  pre_chat_form_options :jsonb
 #  reply_time            :integer          default("in_a_few_minutes")
+#  smtp_address              :string           default("")
+#  smtp_authentication       :string           default("login")
+#  smtp_domain               :string           default("")
+#  smtp_enable_ssl_tls       :boolean          default(FALSE), not null
+#  smtp_enable_starttls_auto :boolean          default(TRUE), not null
+#  smtp_enabled              :boolean          default(FALSE), not null
+#  smtp_from_email           :string           default("")
+#  smtp_login                :string           default("")
+#  smtp_openssl_verify_mode  :string           default("none")
+#  smtp_password             :string           default("")
+#  smtp_port                 :integer          default(0)
 #  website_token         :string
 #  website_url           :string
 #  welcome_tagline       :string
@@ -30,9 +41,13 @@ class Channel::WebWidget < ApplicationRecord
   include Channelable
   include FlagShihTzu
 
+  encrypts :smtp_password if Chatwoot.encryption_configured?
+
   self.table_name = 'channel_web_widgets'
   EDITABLE_ATTRS = [:website_url, :widget_color, :welcome_title, :welcome_tagline, :reply_time, :pre_chat_form_enabled,
                     :continuity_via_email, :hmac_mandatory, :allowed_domains,
+                    :smtp_enabled, :smtp_from_email, :smtp_login, :smtp_password, :smtp_address, :smtp_port, :smtp_domain,
+                    :smtp_enable_starttls_auto, :smtp_enable_ssl_tls, :smtp_openssl_verify_mode, :smtp_authentication,
                     { pre_chat_form_options: [:pre_chat_message, :require_email,
                                               { pre_chat_fields:
                                                 [:field_type, :label, :placeholder, :name, :enabled, :type, :enabled, :required,
@@ -42,6 +57,7 @@ class Channel::WebWidget < ApplicationRecord
   before_validation :validate_pre_chat_options
   validates :website_url, presence: true
   validates :widget_color, presence: true
+  validates :smtp_from_email, :smtp_address, :smtp_port, :smtp_login, presence: true, if: :smtp_enabled
   has_many :portals, foreign_key: 'channel_web_widget_id', dependent: :nullify, inverse_of: :channel_web_widget
 
   has_secure_token :website_token

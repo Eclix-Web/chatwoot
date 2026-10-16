@@ -3,7 +3,7 @@ import { mapGetters } from 'vuex';
 import { useAlert } from 'dashboard/composables';
 import SettingsFieldSection from 'dashboard/components-next/Settings/SettingsFieldSection.vue';
 import { useVuelidate } from '@vuelidate/core';
-import { required, minLength } from '@vuelidate/validators';
+import { required, requiredIf, email, minLength } from '@vuelidate/validators';
 import InputRadioGroup from './components/InputRadioGroup.vue';
 import SingleSelectDropdown from './components/SingleSelectDropdown.vue';
 import NextButton from 'dashboard/components-next/button/Button.vue';
@@ -27,6 +27,7 @@ export default {
   data() {
     return {
       isSMTPEnabled: false,
+      fromEmail: '',
       address: '',
       port: '',
       login: '',
@@ -57,18 +58,24 @@ export default {
       ],
     };
   },
-  validations: {
-    address: { required },
-    port: {
-      required,
-      minLength: minLength(2),
-    },
-    login: { required },
-    password: { required },
-    domain: { required },
+  validations() {
+    return {
+      fromEmail: { required: requiredIf(this.isAWebWidgetInbox), email },
+      address: { required },
+      port: {
+        required,
+        minLength: minLength(2),
+      },
+      login: { required },
+      password: { required },
+      domain: { required },
+    };
   },
   computed: {
     ...mapGetters({ uiFlags: 'inboxes/getUIFlags' }),
+    isAWebWidgetInbox() {
+      return this.inbox.channel_type === 'Channel::WebWidget';
+    },
   },
   watch: {
     inbox() {
@@ -82,6 +89,7 @@ export default {
     setDefaults() {
       const {
         smtp_enabled,
+        smtp_from_email,
         smtp_address,
         smtp_port,
         smtp_login,
@@ -93,6 +101,7 @@ export default {
         smtp_authentication,
       } = this.inbox;
       this.isSMTPEnabled = smtp_enabled;
+      this.fromEmail = smtp_from_email;
       this.address = smtp_address;
       this.port = smtp_port;
       this.login = smtp_login;
@@ -132,6 +141,7 @@ export default {
         const payload = {
           id: this.inbox.id,
           channel: {
+            ...(this.isAWebWidgetInbox && { smtp_from_email: this.fromEmail }),
             smtp_enabled: this.isSMTPEnabled,
             smtp_address: this.address,
             smtp_port: this.port,
@@ -174,6 +184,16 @@ export default {
       </label>
       <p>{{ $t('INBOX_MGMT.SMTP.TOGGLE_HELP') }}</p>
       <div v-if="isSMTPEnabled" class="mb-6">
+        <woot-input
+          v-if="isAWebWidgetInbox"
+          v-model="fromEmail"
+          :class="{ error: v$.fromEmail.$error }"
+          class="w-full"
+          :label="$t('INBOX_MGMT.SMTP.FROM_EMAIL.LABEL')"
+          :placeholder="$t('INBOX_MGMT.SMTP.FROM_EMAIL.PLACE_HOLDER')"
+          :help-text="$t('INBOX_MGMT.SMTP.FROM_EMAIL.HELP_TEXT')"
+          @blur="v$.fromEmail.$touch"
+        />
         <woot-input
           v-model="address"
           :class="{ error: v$.address.$error }"

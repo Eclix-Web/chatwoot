@@ -1482,6 +1482,11 @@
         "SUCCESS_MESSAGE": "SMTP settings updated successfully",
         "ERROR_MESSAGE": "Unable to update SMTP settings"
       },
+      "FROM_EMAIL": {
+        "LABEL": "From email",
+        "PLACE_HOLDER": "support@example.com",
+        "HELP_TEXT": "Emails from this inbox (replies to offline visitors, transcripts) are sent from this address through the SMTP server below. Use an address the SMTP login is allowed to send as."
+      },
       "ADDRESS": {
         "LABEL": "Address",
         "PLACE_HOLDER": "Address (Eg: smtp.gmail.com)"
