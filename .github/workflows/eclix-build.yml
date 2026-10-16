@@ -1,10 +1,16 @@
 # Build the Eclixtech Chatwoot image (Community Edition + eclix/patches) and
 # publish it to GHCR. Mirrors upstream's publish_foss_docker.yml, amd64 only.
+#
+# - push of a vX.Y.Z-eclixN tag      -> :vX.Y.Z-eclixN   (releases; what the server runs)
+# - push/merge to the `eclix` branch -> :eclix-<sha> and :eclix-latest
+#   (`master`/`develop` are untouched upstream mirrors and are never built)
 name: Eclix build image
 
 on:
   push:
     tags: ['v*-eclix*']
+    branches: [eclix]
+    paths-ignore: ['**.md']
   workflow_dispatch:
     inputs:
       tag:
@@ -22,7 +28,9 @@ permissions:
 
 concurrency:
   group: eclix-build-${{ inputs.tag || github.ref_name }}
-  cancel-in-progress: false
+  # A newer push to the branch supersedes a running branch build; release
+  # tag builds always finish.
+  cancel-in-progress: ${{ github.ref_type == 'branch' && !inputs.tag }}
 
 jobs:
   build:
@@ -31,15 +39,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
+      IS_BRANCH: ${{ github.ref_type == 'branch' && !inputs.tag }}
       TAG: ${{ inputs.tag || github.ref_name }}
       IMAGE: ghcr.io/eclix-web/chatwoot
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: refs/tags/${{ env.TAG }}
+          ref: ${{ env.IS_BRANCH == 'true' && github.sha || format('refs/tags/{0}', env.TAG) }}
 
-      - name: Check tag shape
-        run: '[[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-eclix[0-9]+$ ]] || { echo "bad tag $TAG"; exit 1; }'
+      - name: Image tags
+        id: tags
+        run: |
+          if [[ "$IS_BRANCH" == true ]]; then
+            echo "list=$IMAGE:eclix-${GITHUB_SHA::7},$IMAGE:eclix-latest" >> "$GITHUB_OUTPUT"
+          else
+            [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-eclix[0-9]+$ ]] || { echo "bad tag $TAG"; exit 1; }
+            echo "list=$IMAGE:$TAG" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Strip enterprise code (Community Edition)
         run: |
@@ -60,14 +76,14 @@ jobs:
           file: docker/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ${{ env.IMAGE }}:${{ env.TAG }}
+          tags: ${{ steps.tags.outputs.list }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ env.TAG }}
+            org.opencontainers.image.version=${{ env.IS_BRANCH == 'true' && format('eclix-{0}', github.sha) || env.TAG }}
             org.opencontainers.image.licenses=MIT
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Summary
-        run: echo "Published \`$IMAGE:$TAG\`" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "Published \`${{ steps.tags.outputs.list }}\`" >> "$GITHUB_STEP_SUMMARY"

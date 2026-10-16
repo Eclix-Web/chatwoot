@@ -23,8 +23,14 @@ upstream paid features.
 - `eclix` (default branch): upstream release tag + one commit with this
   directory, our workflows, upstream's workflows removed, and the patches
   applied. `git show eclix` shows the whole diff from upstream.
-- `vX.Y.Z-eclixN`: what gets built. A push of one of these tags runs
+- `vX.Y.Z-eclixN`: releases. A push of one of these tags runs
   `eclix-build.yml` and publishes `ghcr.io/eclix-web/chatwoot:vX.Y.Z-eclixN`.
+  This is what the server runs.
+- Every push or merged PR to `eclix` (except Markdown-only changes) also runs
+  `eclix-build.yml` and publishes `:eclix-<short sha>` and a moving
+  `:eclix-latest`, for testing before cutting a release tag. `sync.sh` pushes
+  the branch and a tag together, so a sync builds the same commit twice; the
+  second build mostly hits the layer cache.
 - `develop` / `master`: untouched upstream mirrors from the fork.
 
 ## Upgrading to a new Chatwoot release
