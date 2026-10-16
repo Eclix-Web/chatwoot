@@ -45,9 +45,23 @@ To sync by hand:
 eclix/sync.sh v4.19.0      # rebuilds `eclix` on v4.19.0, pushes v4.19.0-eclix1 -> CI builds the image
 ```
 
-Read the upstream release notes first, then deploy on the server: set the new tag in
-`/opt/chatwoot/compose.yaml` (`image: ghcr.io/eclix-web/chatwoot:...`) and run
-`docker compose up -d`. Migrations run on rails start (`db:chatwoot_prepare`).
+Read the upstream release notes first, then deploy (below).
+
+## Deploying
+
+The server runs the Komodo stack `chatwoot` (server `support-chatwoot`, files on
+host at `/opt/chatwoot`). The stack logs in to GHCR with the Komodo registry
+account `ghcr.io` / `cto836` and pulls before every deploy. The image is private.
+
+1. Wait for the `vX.Y.Z-eclixN` build in Actions to finish.
+2. Komodo → Stacks → `chatwoot` → the `compose.yaml` file: change
+   `image: ghcr.io/eclix-web/chatwoot:...` to the new tag (it appears once, in `x-base`). Save.
+3. Deploy. Komodo pulls the image and recreates rails + sidekiq. Migrations run on
+   rails start (`db:chatwoot_prepare`).
+
+The stack has no Komodo environment on purpose. Secrets live only in the server's
+`.env`, and Komodo never writes it. Rollback: set the previous tag and deploy.
+Before a release that adds a migration, take a `pg_dump -Fc` of the database.
 
 A patch that adds a migration keeps its version **below** the `schema.rb`
 version and adds its columns to `schema.rb` without bumping the version. A fresh
