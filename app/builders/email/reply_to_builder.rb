@@ -6,6 +6,8 @@ class Email::ReplyToBuilder < Email::BaseBuilder
                  channel.email
                elsif inbound_email_enabled?
                  "reply+#{conversation.uuid}@#{account.inbound_email_domain}"
+               elsif inbox.web_widget? && channel.smtp_enabled
+                 channel.smtp_from_email
                else
                  account_support_email
                end

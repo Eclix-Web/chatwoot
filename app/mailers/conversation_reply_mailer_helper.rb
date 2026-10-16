@@ -60,7 +60,7 @@ module ConversationReplyMailerHelper
   end
 
   def set_delivery_method
-    return unless @inbox.inbox_type == 'Email' && @channel.smtp_enabled
+    return unless email_smtp_enabled? || widget_smtp_enabled?
 
     smtp_settings = {
       address: @channel.smtp_address,
@@ -88,6 +88,10 @@ module ConversationReplyMailerHelper
 
   def email_smtp_enabled?
     @inbox.inbox_type == 'Email' && @channel.smtp_enabled
+  end
+
+  def widget_smtp_enabled?
+    @inbox.web_widget? && @channel.smtp_enabled
   end
 
   def email_imap_enabled?

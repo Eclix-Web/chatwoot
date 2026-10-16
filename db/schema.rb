@@ -732,6 +732,17 @@ ActiveRecord::Schema[7.1].define(version: 2026_08_31_000000) do
     t.boolean "hmac_mandatory", default: false
     t.boolean "continuity_via_email", default: true, null: false
     t.text "allowed_domains", default: ""
+    t.boolean "smtp_enabled", default: false, null: false
+    t.string "smtp_from_email", default: ""
+    t.string "smtp_address", default: ""
+    t.integer "smtp_port", default: 0
+    t.string "smtp_login", default: ""
+    t.string "smtp_password", default: ""
+    t.string "smtp_domain", default: ""
+    t.boolean "smtp_enable_ssl_tls", default: false, null: false
+    t.boolean "smtp_enable_starttls_auto", default: true, null: false
+    t.string "smtp_openssl_verify_mode", default: "none"
+    t.string "smtp_authentication", default: "login"
     t.index ["hmac_token"], name: "index_channel_web_widgets_on_hmac_token", unique: true
     t.index ["website_token"], name: "index_channel_web_widgets_on_website_token", unique: true
   end

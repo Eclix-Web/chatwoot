@@ -1,0 +1,17 @@
+diff --git a/app/javascript/shared/components/Branding.vue b/app/javascript/shared/components/Branding.vue
+index 2f1a8d5d0..2f6918825 100644
+--- a/app/javascript/shared/components/Branding.vue
++++ b/app/javascript/shared/components/Branding.vue
+@@ -52,8 +52,11 @@ export default {
+ </script>
+ 
+ <template>
++  <!-- Eclixtech fork: "Powered by" footer removed from the widget and CSAT
++       survey (eclix/README.md). To show our own instead, drop the `false &&`
++       and set the link text/URL below. -->
+   <div
+-    v-if="globalConfig.brandName && !disableBranding"
++    v-if="false && globalConfig.brandName && !disableBranding"
+     class="px-0 py-3 flex justify-center"
+   >
+     <a

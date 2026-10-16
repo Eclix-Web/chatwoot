@@ -2,6 +2,7 @@ class Email::FromBuilder < Email::BaseBuilder
   pattr_initialize [:inbox!, :message!]
 
   def build
+    return sender_name(parse_email(channel.smtp_from_email)) if inbox.web_widget? && channel.smtp_enabled
     return sender_name(account_support_email) unless inbox.email?
 
     from_email = case email_channel_type

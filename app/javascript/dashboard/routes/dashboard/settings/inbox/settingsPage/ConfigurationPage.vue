@@ -9,6 +9,7 @@ import SettingsToggleSection from 'dashboard/components-next/Settings/SettingsTo
 import SettingsAccordion from 'dashboard/components-next/Settings/SettingsAccordion.vue';
 import ImapSettings from '../ImapSettings.vue';
 import SmtpSettings from '../SmtpSettings.vue';
+import WidgetSmtpSettings from '../WidgetSmtpSettings.vue';
 import { useVuelidate } from '@vuelidate/core';
 import { required } from '@vuelidate/validators';
 import NextButton from 'dashboard/components-next/button/Button.vue';
@@ -24,6 +25,7 @@ export default {
     SettingsAccordion,
     ImapSettings,
     SmtpSettings,
+    WidgetSmtpSettings,
     NextButton,
     TextArea,
     WhatsappBusinessManagementToken,
@@ -324,6 +326,7 @@ export default {
         "
       />
     </SettingsAccordion>
+    <WidgetSmtpSettings :inbox="inbox" class="mt-6" />
   </div>
   <div v-else-if="isAPIInbox">
     <SettingsFieldSection

@@ -1482,6 +1482,15 @@
         "SUCCESS_MESSAGE": "SMTP settings updated successfully",
         "ERROR_MESSAGE": "Unable to update SMTP settings"
       },
+      "WIDGET": {
+        "HEADER": "Send emails through this inbox's own SMTP",
+        "DESCRIPTION": "Emails to visitors from this inbox (replies after they leave the chat, transcripts) go out through the SMTP server below instead of the installation's default one.",
+        "FROM_EMAIL": {
+          "LABEL": "From email",
+          "PLACE_HOLDER": "support{'@'}example.com",
+          "HELP_TEXT": "Emails are sent from this address. Use one the SMTP login is allowed to send as."
+        }
+      },
       "ADDRESS": {
         "LABEL": "Address",
         "PLACE_HOLDER": "Address (Eg: smtp.gmail.com)"
