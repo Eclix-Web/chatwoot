@@ -10,6 +10,7 @@ export default {
     RESOLVED: 'resolved',
     PENDING: 'pending',
     SNOOZED: 'snoozed',
+    ARCHIVED: 'archived',
     ALL: 'all',
   },
   CONVERSATION_TYPE: {

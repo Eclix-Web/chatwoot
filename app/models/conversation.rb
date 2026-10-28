@@ -83,7 +83,7 @@ class Conversation < ApplicationRecord
   validates :uuid, uniqueness: true
   validate :validate_referer_url
 
-  enum status: { open: 0, resolved: 1, pending: 2, snoozed: 3 }
+  enum status: { open: 0, resolved: 1, pending: 2, snoozed: 3, archived: 4 }
   enum priority: { low: 0, medium: 1, high: 2, urgent: 3 }
 
   scope :unassigned, -> { where(assignee_id: nil, assignee_agent_bot_id: nil) }
@@ -274,8 +274,8 @@ class Conversation < ApplicationRecord
   end
 
   def handle_resolved_status_change
-    # When conversation is resolved, clear waiting_since using update_column to avoid callbacks
-    return unless saved_change_to_status? && status == 'resolved'
+    # When conversation is resolved or archived, clear waiting_since using update_column to avoid callbacks
+    return unless saved_change_to_status? && %w[resolved archived].include?(status)
 
     # rubocop:disable Rails/SkipsModelValidations
     update_column(:waiting_since, nil)

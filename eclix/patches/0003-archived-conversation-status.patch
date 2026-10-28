@@ -1,0 +1,226 @@
+diff --git a/app/javascript/dashboard/components-next/Conversation/ConversationCard/CardStatusIcon.vue b/app/javascript/dashboard/components-next/Conversation/ConversationCard/CardStatusIcon.vue
+index c16372ac5..8bfffbcd8 100644
+--- a/app/javascript/dashboard/components-next/Conversation/ConversationCard/CardStatusIcon.vue
++++ b/app/javascript/dashboard/components-next/Conversation/ConversationCard/CardStatusIcon.vue
+@@ -20,6 +20,7 @@ const icons = {
+   [CONVERSATION_STATUS.RESOLVED]: 'i-woot-status-resolved',
+   [CONVERSATION_STATUS.PENDING]: 'i-woot-status-pending',
+   [CONVERSATION_STATUS.SNOOZED]: 'i-woot-status-snoozed',
++  [CONVERSATION_STATUS.ARCHIVED]: 'i-lucide-archive',
+ };
+ 
+ const iconName = computed(() => {
+diff --git a/app/javascript/dashboard/components-next/filter/provider.js b/app/javascript/dashboard/components-next/filter/provider.js
+index bdd096b26..cbf753c9c 100644
+--- a/app/javascript/dashboard/components-next/filter/provider.js
++++ b/app/javascript/dashboard/components-next/filter/provider.js
+@@ -116,7 +116,14 @@ export function useConversationFilterContext() {
+       attributeName: t('FILTER.ATTRIBUTES.STATUS'),
+       label: t('FILTER.ATTRIBUTES.STATUS'),
+       inputType: 'multiSelect',
+-      options: ['open', 'resolved', 'pending', 'snoozed', 'all'].map(id => {
++      options: [
++        'open',
++        'resolved',
++        'pending',
++        'snoozed',
++        'archived',
++        'all',
++      ].map(id => {
+         return {
+           id,
+           name: t(`CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.${id}.TEXT`),
+diff --git a/app/javascript/dashboard/components/buttons/ResolveAction.vue b/app/javascript/dashboard/components/buttons/ResolveAction.vue
+index 594b9d388..a89284153 100644
+--- a/app/javascript/dashboard/components/buttons/ResolveAction.vue
++++ b/app/javascript/dashboard/components/buttons/ResolveAction.vue
+@@ -47,13 +47,16 @@ const isResolved = computed(
+ const isSnoozed = computed(
+   () => currentChat.value.status === wootConstants.STATUS_TYPE.SNOOZED
+ );
++const isArchived = computed(
++  () => currentChat.value.status === wootConstants.STATUS_TYPE.ARCHIVED
++);
+ 
+ const showAdditionalActions = computed(
+-  () => !isPending.value && !isSnoozed.value
++  () => !isPending.value && !isSnoozed.value && !isArchived.value
+ );
+ 
+ const showOpenButton = computed(() => {
+-  return isPending.value || isSnoozed.value;
++  return isPending.value || isSnoozed.value || isArchived.value;
+ });
+ 
+ const getConversationParams = () => {
+@@ -253,6 +256,18 @@ useEmitter(CMD_RESOLVE_CONVERSATION, onCmdResolveConversation);
+             @click="() => toggleStatus(wootConstants.STATUS_TYPE.PENDING)"
+           />
+         </WootDropdownItem>
++        <WootDropdownItem>
++          <Button
++            :label="t('CONVERSATION.RESOLVE_DROPDOWN.ARCHIVE')"
++            ghost
++            slate
++            sm
++            start
++            icon="i-lucide-archive"
++            class="w-full"
++            @click="() => toggleStatus(wootConstants.STATUS_TYPE.ARCHIVED)"
++          />
++        </WootDropdownItem>
+       </WootDropdownMenu>
+     </div>
+     <ConversationResolveAttributesModal
+diff --git a/app/javascript/dashboard/components/widgets/conversation/ConversationBasicFilter.vue b/app/javascript/dashboard/components/widgets/conversation/ConversationBasicFilter.vue
+index 40b5a5e9f..57faae6d5 100644
+--- a/app/javascript/dashboard/components/widgets/conversation/ConversationBasicFilter.vue
++++ b/app/javascript/dashboard/components/widgets/conversation/ConversationBasicFilter.vue
+@@ -59,6 +59,10 @@ const chatStatusOptions = computed(() => [
+     label: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.snoozed.TEXT'),
+     value: 'snoozed',
+   },
++  {
++    label: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.archived.TEXT'),
++    value: 'archived',
++  },
+   {
+     label: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.all.TEXT'),
+     value: 'all',
+diff --git a/app/javascript/dashboard/components/widgets/conversation/contextMenu/Index.vue b/app/javascript/dashboard/components/widgets/conversation/contextMenu/Index.vue
+index 3bb9c0aed..125f85027 100644
+--- a/app/javascript/dashboard/components/widgets/conversation/contextMenu/Index.vue
++++ b/app/javascript/dashboard/components/widgets/conversation/contextMenu/Index.vue
+@@ -118,6 +118,11 @@ export default {
+           label: this.$t('CONVERSATION.CARD_CONTEXT_MENU.PENDING'),
+           icon: 'book-clock',
+         },
++        {
++          key: wootConstants.STATUS_TYPE.ARCHIVED,
++          label: this.$t('CONVERSATION.CARD_CONTEXT_MENU.ARCHIVE'),
++          icon: 'archive',
++        },
+       ],
+       snoozeOption: {
+         key: wootConstants.STATUS_TYPE.SNOOZED,
+diff --git a/app/javascript/dashboard/composables/useAutomationValues.js b/app/javascript/dashboard/composables/useAutomationValues.js
+index 2b13c3fb6..113b20aa6 100644
+--- a/app/javascript/dashboard/composables/useAutomationValues.js
++++ b/app/javascript/dashboard/composables/useAutomationValues.js
+@@ -47,6 +47,9 @@ export default function useAutomationValues() {
+       snoozed: {
+         TEXT: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.snoozed.TEXT'),
+       },
++      archived: {
++        TEXT: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.archived.TEXT'),
++      },
+       all: {
+         TEXT: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.all.TEXT'),
+       },
+diff --git a/app/javascript/dashboard/constants/globals.js b/app/javascript/dashboard/constants/globals.js
+index da913464a..e3f176afe 100644
+--- a/app/javascript/dashboard/constants/globals.js
++++ b/app/javascript/dashboard/constants/globals.js
+@@ -10,6 +10,7 @@ export default {
+     RESOLVED: 'resolved',
+     PENDING: 'pending',
+     SNOOZED: 'snoozed',
++    ARCHIVED: 'archived',
+     ALL: 'all',
+   },
+   CONVERSATION_TYPE: {
+diff --git a/app/javascript/dashboard/i18n/locale/en/chatlist.json b/app/javascript/dashboard/i18n/locale/en/chatlist.json
+index c36b897b3..5b3d2eed9 100644
+--- a/app/javascript/dashboard/i18n/locale/en/chatlist.json
++++ b/app/javascript/dashboard/i18n/locale/en/chatlist.json
+@@ -33,6 +33,9 @@
+       "snoozed": {
+         "TEXT": "Snoozed"
+       },
++      "archived": {
++        "TEXT": "Archived"
++      },
+       "all": {
+         "TEXT": "All"
+       }
+diff --git a/app/javascript/dashboard/i18n/locale/en/conversation.json b/app/javascript/dashboard/i18n/locale/en/conversation.json
+index 7c8095a52..a5a6e80a0 100644
+--- a/app/javascript/dashboard/i18n/locale/en/conversation.json
++++ b/app/javascript/dashboard/i18n/locale/en/conversation.json
+@@ -167,6 +167,7 @@
+     },
+     "RESOLVE_DROPDOWN": {
+       "MARK_PENDING": "Mark as pending",
++      "ARCHIVE": "Archive",
+       "SNOOZE_UNTIL": "Snooze",
+       "SNOOZE": {
+         "TITLE": "Snooze until",
+@@ -237,6 +238,7 @@
+     "CARD_CONTEXT_MENU": {
+       "PENDING": "Mark as pending",
+       "RESOLVED": "Mark as resolved",
++      "ARCHIVE": "Archive conversation",
+       "MARK_AS_UNREAD": "Mark as unread",
+       "MARK_AS_READ": "Mark as read",
+       "REOPEN": "Reopen conversation",
+diff --git a/app/javascript/shared/constants/messages.js b/app/javascript/shared/constants/messages.js
+index 18bc380ec..1cf1d5baa 100644
+--- a/app/javascript/shared/constants/messages.js
++++ b/app/javascript/shared/constants/messages.js
+@@ -18,6 +18,7 @@ export const CONVERSATION_STATUS = {
+   RESOLVED: 'resolved',
+   PENDING: 'pending',
+   SNOOZED: 'snoozed',
++  ARCHIVED: 'archived',
+ };
+ 
+ export const CONVERSATION_PRIORITY = {
+diff --git a/app/models/conversation.rb b/app/models/conversation.rb
+index 62cbeaa37..0703a934c 100644
+--- a/app/models/conversation.rb
++++ b/app/models/conversation.rb
+@@ -83,7 +83,7 @@ class Conversation < ApplicationRecord
+   validates :uuid, uniqueness: true
+   validate :validate_referer_url
+ 
+-  enum status: { open: 0, resolved: 1, pending: 2, snoozed: 3 }
++  enum status: { open: 0, resolved: 1, pending: 2, snoozed: 3, archived: 4 }
+   enum priority: { low: 0, medium: 1, high: 2, urgent: 3 }
+ 
+   scope :unassigned, -> { where(assignee_id: nil, assignee_agent_bot_id: nil) }
+@@ -274,8 +274,8 @@ class Conversation < ApplicationRecord
+   end
+ 
+   def handle_resolved_status_change
+-    # When conversation is resolved, clear waiting_since using update_column to avoid callbacks
+-    return unless saved_change_to_status? && status == 'resolved'
++    # When conversation is resolved or archived, clear waiting_since using update_column to avoid callbacks
++    return unless saved_change_to_status? && %w[resolved archived].include?(status)
+ 
+     # rubocop:disable Rails/SkipsModelValidations
+     update_column(:waiting_since, nil)
+diff --git a/app/models/message.rb b/app/models/message.rb
+index 913fb5a64..70e15d74b 100644
+--- a/app/models/message.rb
++++ b/app/models/message.rb
+@@ -407,7 +407,7 @@ class Message < ApplicationRecord
+ 
+     conversation.open! if conversation.snoozed?
+ 
+-    reopen_resolved_conversation if conversation.resolved?
++    reopen_resolved_conversation if conversation.resolved? || conversation.archived?
+   end
+ 
+   def mark_pending_conversation_as_open_for_human_response
+diff --git a/config/locales/en.yml b/config/locales/en.yml
+index 3ce065515..c14ff0cab 100644
+--- a/config/locales/en.yml
++++ b/config/locales/en.yml
+@@ -342,6 +342,7 @@ en:
+         open: 'Conversation was reopened by %{user_name}'
+         pending: 'Conversation was marked as pending by %{user_name}'
+         snoozed: 'Conversation was snoozed by %{user_name}'
++        archived: 'Conversation was archived by %{user_name}'
+         auto_resolved_days: 'Conversation was marked resolved by system due to %{count} days of inactivity'
+         auto_resolved_hours: 'Conversation was marked resolved by system due to %{count} hours of inactivity'
+         auto_resolved_minutes: 'Conversation was marked resolved by system due to %{count} minutes of inactivity'

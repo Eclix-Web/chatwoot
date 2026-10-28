@@ -47,6 +47,9 @@ export default function useAutomationValues() {
       snoozed: {
         TEXT: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.snoozed.TEXT'),
       },
+      archived: {
+        TEXT: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.archived.TEXT'),
+      },
       all: {
         TEXT: t('CHAT_LIST.CHAT_STATUS_FILTER_ITEMS.all.TEXT'),
       },

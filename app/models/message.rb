@@ -407,7 +407,7 @@ class Message < ApplicationRecord
 
     conversation.open! if conversation.snoozed?
 
-    reopen_resolved_conversation if conversation.resolved?
+    reopen_resolved_conversation if conversation.resolved? || conversation.archived?
   end
 
   def mark_pending_conversation_as_open_for_human_response

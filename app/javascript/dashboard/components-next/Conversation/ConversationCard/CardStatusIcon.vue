@@ -20,6 +20,7 @@ const icons = {
   [CONVERSATION_STATUS.RESOLVED]: 'i-woot-status-resolved',
   [CONVERSATION_STATUS.PENDING]: 'i-woot-status-pending',
   [CONVERSATION_STATUS.SNOOZED]: 'i-woot-status-snoozed',
+  [CONVERSATION_STATUS.ARCHIVED]: 'i-lucide-archive',
 };
 
 const iconName = computed(() => {

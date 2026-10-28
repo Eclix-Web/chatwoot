@@ -118,6 +118,11 @@ export default {
           label: this.$t('CONVERSATION.CARD_CONTEXT_MENU.PENDING'),
           icon: 'book-clock',
         },
+        {
+          key: wootConstants.STATUS_TYPE.ARCHIVED,
+          label: this.$t('CONVERSATION.CARD_CONTEXT_MENU.ARCHIVE'),
+          icon: 'archive',
+        },
       ],
       snoozeOption: {
         key: wootConstants.STATUS_TYPE.SNOOZED,

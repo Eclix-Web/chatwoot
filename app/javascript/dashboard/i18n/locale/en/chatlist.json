@@ -33,6 +33,9 @@
       "snoozed": {
         "TEXT": "Snoozed"
       },
+      "archived": {
+        "TEXT": "Archived"
+      },
       "all": {
         "TEXT": "All"
       }
