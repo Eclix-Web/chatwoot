@@ -39,7 +39,13 @@ class Imap::BaseFetchEmailService
 
   def email_already_present?(channel, message_id)
     # exists? avoids Message's default_scope ORDER BY, which full-scans large inboxes
-    channel.inbox.messages.exists?(source_id: message_id) || deleted_message_tracker.deleted?(message_id)
+    channel.inbox.messages.exists?(source_id: message_id) || threaded_into_website_inbox?(channel, message_id) ||
+      deleted_message_tracker.deleted?(message_id)
+  end
+
+  # Imap::ImapMailbox files replies to website-inbox emails under the website conversation, not this inbox.
+  def threaded_into_website_inbox?(channel, message_id)
+    channel.account.messages.joins(:inbox).exists?(source_id: message_id, inboxes: { channel_type: 'Channel::WebWidget' })
   end
 
   def deleted_message_tracker
