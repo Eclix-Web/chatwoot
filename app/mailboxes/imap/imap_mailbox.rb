@@ -4,6 +4,9 @@ class Imap::ImapMailbox
   attr_accessor :channel, :account, :inbox, :conversation, :processed_mail
 
   FALLBACK_CONVERSATION_PATTERN = %r{account/(\d+)/conversation/([a-zA-Z0-9-]+)@}
+  # Message-ID / In-Reply-To of emails ConversationReplyMailer sends: <conversation/<uuid>/messages/<id>@...>
+  # or <account/<id>/conversation/<uuid>@...>
+  CONVERSATION_UUID_PATTERN = %r{(?:^|<)(?:conversation/([a-zA-Z0-9-]+)/messages/|account/\d+/conversation/([a-zA-Z0-9-]+)@)}
 
   def process(mail, channel)
     @inbound_mail = mail
@@ -18,8 +21,13 @@ class Imap::ImapMailbox
     return unless incoming_email_from_valid_email?
 
     ActiveRecord::Base.transaction do
-      find_or_create_contact
-      find_or_create_conversation
+      if (@conversation = find_website_conversation)
+        @contact = @conversation.contact
+        @contact_inbox = @conversation.contact_inbox
+      else
+        find_or_create_contact
+        find_or_create_conversation
+      end
       create_message
       add_attachments_to_message
     end
@@ -84,6 +92,30 @@ class Imap::ImapMailbox
       message_to_return = message if message.present?
     end
     message_to_return
+  end
+
+  # A reply to an email sent from a website inbox (offline reply, transcript) lands in this shared mailbox.
+  # Thread it back into that website conversation instead of starting a new one here, but only when the
+  # sender is that conversation's contact, so a forged References header can't post into someone else's chat.
+  def find_website_conversation
+    uuids = conversation_uuids_in_headers
+    return if uuids.empty?
+
+    conversation = @account.conversations.joins(:inbox)
+                           .where(inboxes: { channel_type: 'Channel::WebWidget' })
+                           .find_by(uuid: uuids)
+    conversation if conversation && sent_by_contact?(conversation)
+  end
+
+  def conversation_uuids_in_headers
+    ([in_reply_to] + references).compact.filter_map do |message_id|
+      match = CONVERSATION_UUID_PATTERN.match(message_id)
+      match && (match[1] || match[2])
+    end
+  end
+
+  def sent_by_contact?(conversation)
+    conversation.contact.email.present? && conversation.contact.email.casecmp?(original_sender_email)
   end
 
   def find_or_create_conversation
