@@ -321,7 +321,7 @@ index 70963a0f7..fc7e40f87 100644
        @inbox.email_address || @agent&.email
      end
 diff --git a/app/mailers/conversation_reply_mailer_helper.rb b/app/mailers/conversation_reply_mailer_helper.rb
-index 88266c14d..f8efdfc22 100644
+index 88266c14d..b93cda5d9 100644
 --- a/app/mailers/conversation_reply_mailer_helper.rb
 +++ b/app/mailers/conversation_reply_mailer_helper.rb
 @@ -60,7 +60,7 @@ module ConversationReplyMailerHelper
@@ -344,6 +344,16 @@ index 88266c14d..f8efdfc22 100644
    def email_imap_enabled?
      @inbox.inbox_type == 'Email' && @channel.imap_enabled
    end
+@@ -114,7 +118,8 @@ module ConversationReplyMailerHelper
+   def channel_email_domain
+     return @account.inbound_email_domain if @account.inbound_email_domain.present?
+ 
+-    email = @inbox.channel.try(:email)
++    # Website inboxes have no channel email: use the address the mail is sent from
++    email = @inbox.channel.try(:email) || (from_email if @inbox.web_widget?)
+     email.present? ? email.split('@').last : raise(StandardError, 'Channel email domain not present.')
+   end
+ end
 diff --git a/app/models/channel/web_widget.rb b/app/models/channel/web_widget.rb
 index d977efa38..e7aaed350 100644
 --- a/app/models/channel/web_widget.rb

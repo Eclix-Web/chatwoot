@@ -118,7 +118,8 @@ module ConversationReplyMailerHelper
   def channel_email_domain
     return @account.inbound_email_domain if @account.inbound_email_domain.present?
 
-    email = @inbox.channel.try(:email)
+    # Website inboxes have no channel email: use the address the mail is sent from
+    email = @inbox.channel.try(:email) || (from_email if @inbox.web_widget?)
     email.present? ? email.split('@').last : raise(StandardError, 'Channel email domain not present.')
   end
 end
