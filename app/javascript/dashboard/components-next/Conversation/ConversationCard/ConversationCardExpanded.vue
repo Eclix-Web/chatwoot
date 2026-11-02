@@ -12,6 +12,7 @@ import SLACardLabel from 'dashboard/components-next/Conversation/Sla/SLACardLabe
 import CardStatusIcon from './CardStatusIcon.vue';
 import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
 import Icon from 'dashboard/components-next/icon/Icon.vue';
+import CardQuickActions from './CardQuickActions.vue';
 
 const props = defineProps({
   chat: { type: Object, required: true },
@@ -30,6 +31,7 @@ const emit = defineEmits([
   'deSelectConversation',
   'click',
   'contextmenu',
+  'updateStatus',
 ]);
 
 const lastMessageInChat = computed(() => getLastMessage(props.chat));
@@ -180,6 +182,12 @@ const selectedModel = computed({
       <div v-if="hasSlaPolicyId" class="flex-shrink-0">
         <SLACardLabel ref="slaCardLabel" :chat="chat" />
       </div>
+
+      <CardQuickActions
+        :status="chat.status"
+        class="flex-shrink-0"
+        @update-status="$emit('updateStatus', $event)"
+      />
 
       <div class="flex-shrink-0 w-[4.375rem] text-end">
         <TimeAgo

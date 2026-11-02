@@ -12,6 +12,7 @@ import UnreadBadge from 'dashboard/components-next/Conversation/ConversationCard
 import SLACardLabel from './components/SLACardLabel.vue';
 import VoiceCallStatus from './VoiceCallStatus.vue';
 import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
+import CardQuickActions from 'dashboard/components-next/Conversation/ConversationCard/CardQuickActions.vue';
 
 const props = defineProps({
   chat: { type: Object, required: true },
@@ -31,6 +32,7 @@ const emit = defineEmits([
   'contextmenu',
   'selectConversation',
   'deSelectConversation',
+  'updateStatus',
 ]);
 
 const hovered = ref(false);
@@ -230,6 +232,11 @@ watch(
           class="ltr:ml-auto rtl:mr-auto mt-1"
         />
       </div>
+      <CardQuickActions
+        :status="chat.status"
+        class="absolute end-3 bottom-2.5"
+        @update-status="$emit('updateStatus', $event)"
+      />
       <CardLabels
         v-if="showLabelsSection"
         :conversation-labels="chat.labels"
