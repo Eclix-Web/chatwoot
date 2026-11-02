@@ -1,0 +1,142 @@
+diff --git a/app/javascript/dashboard/components-next/Conversation/ConversationCard/CardQuickActions.vue b/app/javascript/dashboard/components-next/Conversation/ConversationCard/CardQuickActions.vue
+new file mode 100644
+index 000000000..b99d7037a
+--- /dev/null
++++ b/app/javascript/dashboard/components-next/Conversation/ConversationCard/CardQuickActions.vue
+@@ -0,0 +1,40 @@
++<script setup>
++import { useI18n } from 'vue-i18n';
++import wootConstants from 'dashboard/constants/globals';
++import Button from 'dashboard/components-next/button/Button.vue';
++
++defineProps({
++  status: { type: String, required: true },
++});
++
++const emit = defineEmits(['updateStatus']);
++
++const { t } = useI18n();
++const { RESOLVED, ARCHIVED } = wootConstants.STATUS_TYPE;
++</script>
++
++<template>
++  <div
++    class="hidden group-hover:flex items-center gap-0.5 p-0.5 rounded-lg bg-n-solid-2 outline outline-1 outline-n-weak shadow-sm"
++    @click.stop
++  >
++    <Button
++      v-if="status !== RESOLVED"
++      v-tooltip.top="t('CONVERSATION.CARD_CONTEXT_MENU.RESOLVED')"
++      icon="i-lucide-check-check"
++      ghost
++      slate
++      xs
++      @click="emit('updateStatus', RESOLVED)"
++    />
++    <Button
++      v-if="status !== ARCHIVED"
++      v-tooltip.top="t('CONVERSATION.CARD_CONTEXT_MENU.ARCHIVE')"
++      icon="i-lucide-archive"
++      ghost
++      slate
++      xs
++      @click="emit('updateStatus', ARCHIVED)"
++    />
++  </div>
++</template>
+diff --git a/app/javascript/dashboard/components-next/Conversation/ConversationCard/ConversationCardExpanded.vue b/app/javascript/dashboard/components-next/Conversation/ConversationCard/ConversationCardExpanded.vue
+index 0119b7168..27584ae7f 100644
+--- a/app/javascript/dashboard/components-next/Conversation/ConversationCard/ConversationCardExpanded.vue
++++ b/app/javascript/dashboard/components-next/Conversation/ConversationCard/ConversationCardExpanded.vue
+@@ -12,6 +12,7 @@ import SLACardLabel from 'dashboard/components-next/Conversation/Sla/SLACardLabe
+ import CardStatusIcon from './CardStatusIcon.vue';
+ import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
+ import Icon from 'dashboard/components-next/icon/Icon.vue';
++import CardQuickActions from './CardQuickActions.vue';
+ 
+ const props = defineProps({
+   chat: { type: Object, required: true },
+@@ -30,6 +31,7 @@ const emit = defineEmits([
+   'deSelectConversation',
+   'click',
+   'contextmenu',
++  'updateStatus',
+ ]);
+ 
+ const lastMessageInChat = computed(() => getLastMessage(props.chat));
+@@ -181,6 +183,12 @@ const selectedModel = computed({
+         <SLACardLabel ref="slaCardLabel" :chat="chat" />
+       </div>
+ 
++      <CardQuickActions
++        :status="chat.status"
++        class="flex-shrink-0"
++        @update-status="$emit('updateStatus', $event)"
++      />
++
+       <div class="flex-shrink-0 w-[4.375rem] text-end">
+         <TimeAgo
+           :conversation-id="chat.id"
+diff --git a/app/javascript/dashboard/components/ConversationItem.vue b/app/javascript/dashboard/components/ConversationItem.vue
+index 866c8bc83..11613cda6 100644
+--- a/app/javascript/dashboard/components/ConversationItem.vue
++++ b/app/javascript/dashboard/components/ConversationItem.vue
+@@ -139,6 +139,10 @@ const onUpdateConversation = (status, snoozedUntil) => {
+   updateConversationStatus(props.source.id, status, snoozedUntil);
+ };
+ 
++const onQuickStatusUpdate = status => {
++  updateConversationStatus(props.source.id, status);
++};
++
+ const onAssignAgent = agent => {
+   assignAgent(agent, [props.source.id]);
+   closeContextMenu();
+@@ -195,6 +199,7 @@ const onDeleteConversation = () => {
+     @de-select-conversation="onExpandedSelect"
+     @click="onCardClick"
+     @contextmenu="openContextMenu"
++    @update-status="onQuickStatusUpdate"
+   />
+ 
+   <!-- Default (condensed) layout -->
+@@ -212,6 +217,7 @@ const onDeleteConversation = () => {
+     @contextmenu="openContextMenu"
+     @select-conversation="selectConversation"
+     @de-select-conversation="deSelectConversation"
++    @update-status="onQuickStatusUpdate"
+   />
+ 
+   <!-- Shared context menu for both layouts -->
+diff --git a/app/javascript/dashboard/components/widgets/conversation/ConversationCard.vue b/app/javascript/dashboard/components/widgets/conversation/ConversationCard.vue
+index bc7aa62e6..280d5e938 100644
+--- a/app/javascript/dashboard/components/widgets/conversation/ConversationCard.vue
++++ b/app/javascript/dashboard/components/widgets/conversation/ConversationCard.vue
+@@ -12,6 +12,7 @@ import UnreadBadge from 'dashboard/components-next/Conversation/ConversationCard
+ import SLACardLabel from './components/SLACardLabel.vue';
+ import VoiceCallStatus from './VoiceCallStatus.vue';
+ import Checkbox from 'dashboard/components-next/checkbox/Checkbox.vue';
++import CardQuickActions from 'dashboard/components-next/Conversation/ConversationCard/CardQuickActions.vue';
+ 
+ const props = defineProps({
+   chat: { type: Object, required: true },
+@@ -31,6 +32,7 @@ const emit = defineEmits([
+   'contextmenu',
+   'selectConversation',
+   'deSelectConversation',
++  'updateStatus',
+ ]);
+ 
+ const hovered = ref(false);
+@@ -230,6 +232,11 @@ watch(
+           class="ltr:ml-auto rtl:mr-auto mt-1"
+         />
+       </div>
++      <CardQuickActions
++        :status="chat.status"
++        class="absolute end-3 bottom-2.5"
++        @update-status="$emit('updateStatus', $event)"
++      />
+       <CardLabels
+         v-if="showLabelsSection"
+         :conversation-labels="chat.labels"

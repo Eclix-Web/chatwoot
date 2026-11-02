@@ -139,6 +139,10 @@ const onUpdateConversation = (status, snoozedUntil) => {
   updateConversationStatus(props.source.id, status, snoozedUntil);
 };
 
+const onQuickStatusUpdate = status => {
+  updateConversationStatus(props.source.id, status);
+};
+
 const onAssignAgent = agent => {
   assignAgent(agent, [props.source.id]);
   closeContextMenu();
@@ -195,6 +199,7 @@ const onDeleteConversation = () => {
     @de-select-conversation="onExpandedSelect"
     @click="onCardClick"
     @contextmenu="openContextMenu"
+    @update-status="onQuickStatusUpdate"
   />
 
   <!-- Default (condensed) layout -->
@@ -212,6 +217,7 @@ const onDeleteConversation = () => {
     @contextmenu="openContextMenu"
     @select-conversation="selectConversation"
     @de-select-conversation="deSelectConversation"
+    @update-status="onQuickStatusUpdate"
   />
 
   <!-- Shared context menu for both layouts -->
