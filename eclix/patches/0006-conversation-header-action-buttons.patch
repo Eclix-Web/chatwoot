@@ -1,0 +1,148 @@
+diff --git a/app/javascript/dashboard/components/buttons/ResolveAction.vue b/app/javascript/dashboard/components/buttons/ResolveAction.vue
+index a89284153..f7c368f6c 100644
+--- a/app/javascript/dashboard/components/buttons/ResolveAction.vue
++++ b/app/javascript/dashboard/components/buttons/ResolveAction.vue
+@@ -1,15 +1,12 @@
+ <script setup>
+ import { ref, computed } from 'vue';
+ import { useAlert } from 'dashboard/composables';
+-import { useToggle } from '@vueuse/core';
+ import { useI18n } from 'vue-i18n';
+ import { useStore, useStoreGetters } from 'dashboard/composables/store';
+ import { useEmitter } from 'dashboard/composables/emitter';
+ import { useKeyboardEvents } from 'dashboard/composables/useKeyboardEvents';
+ import { useConversationRequiredAttributes } from 'dashboard/composables/useConversationRequiredAttributes';
+ 
+-import WootDropdownItem from 'shared/components/ui/dropdown/DropdownItem.vue';
+-import WootDropdownMenu from 'shared/components/ui/dropdown/DropdownMenu.vue';
+ import wootConstants from 'dashboard/constants/globals';
+ import {
+   CMD_REOPEN_CONVERSATION,
+@@ -25,14 +22,9 @@ const getters = useStoreGetters();
+ const { t } = useI18n();
+ const { checkMissingAttributes } = useConversationRequiredAttributes();
+ 
+-const arrowDownButtonRef = ref(null);
+ const isLoading = ref(false);
+ const resolveAttributesModalRef = ref(null);
+ 
+-const [showActionsDropdown, toggleDropdown] = useToggle();
+-const closeDropdown = () => toggleDropdown(false);
+-const openDropdown = () => toggleDropdown(true);
+-
+ const currentChat = computed(() => getters.getSelectedChat.value);
+ 
+ const isOpen = computed(
+@@ -85,7 +77,6 @@ const openSnoozeModal = () => {
+ };
+ 
+ const toggleStatus = (status, snoozedUntil, customAttributes = null) => {
+-  closeDropdown();
+   isLoading.value = true;
+ 
+   const payload = {
+@@ -143,7 +134,7 @@ const onCmdResolveConversation = () => {
+ 
+ const keyboardEvents = {
+   'Alt+KeyM': {
+-    action: () => arrowDownButtonRef.value?.$el.click(),
++    action: () => showAdditionalActions.value && openSnoozeModal(),
+     allowOnFocusedInput: true,
+   },
+   'Alt+KeyE': {
+@@ -213,63 +204,39 @@ useEmitter(CMD_RESOLVE_CONVERSATION, onCmdResolveConversation);
+         :is-loading="isLoading"
+         @click="onCmdOpenConversation"
+       />
+-      <Button
+-        v-if="showAdditionalActions"
+-        ref="arrowDownButtonRef"
+-        icon="i-lucide-chevron-down"
+-        :disabled="isLoading"
+-        size="sm"
+-        no-animation
+-        class="ltr:rounded-l-none rtl:rounded-r-none !outline-0"
+-        color="slate"
+-        trailing-icon
+-        @click="openDropdown"
+-      />
++      <template v-if="showAdditionalActions">
++        <Button
++          v-tooltip.top="t('CONVERSATION.RESOLVE_DROPDOWN.SNOOZE_UNTIL')"
++          icon="i-lucide-alarm-clock-minus"
++          :disabled="isLoading"
++          size="sm"
++          no-animation
++          class="rounded-none !outline-0"
++          color="slate"
++          @click="openSnoozeModal"
++        />
++        <Button
++          v-tooltip.top="t('CONVERSATION.RESOLVE_DROPDOWN.MARK_PENDING')"
++          icon="i-lucide-circle-dot-dashed"
++          :disabled="isLoading"
++          size="sm"
++          no-animation
++          class="rounded-none !outline-0"
++          color="slate"
++          @click="toggleStatus(wootConstants.STATUS_TYPE.PENDING)"
++        />
++        <Button
++          v-tooltip.top="t('CONVERSATION.RESOLVE_DROPDOWN.ARCHIVE')"
++          icon="i-lucide-archive"
++          :disabled="isLoading"
++          size="sm"
++          no-animation
++          class="ltr:rounded-l-none rtl:rounded-r-none !outline-0"
++          color="slate"
++          @click="toggleStatus(wootConstants.STATUS_TYPE.ARCHIVED)"
++        />
++      </template>
+     </ButtonGroup>
+-    <div
+-      v-if="showActionsDropdown"
+-      v-on-clickaway="closeDropdown"
+-      class="border rounded-lg shadow-lg border-n-strong dark:border-n-strong box-content p-2 w-fit z-10 bg-n-alpha-3 backdrop-blur-[100px] absolute block left-auto top-full mt-0.5 start-0 xl:start-auto xl:end-0 max-w-[12.5rem] min-w-[9.75rem] [&_ul>li]:mb-0"
+-    >
+-      <WootDropdownMenu class="mb-0">
+-        <WootDropdownItem v-if="!isPending">
+-          <Button
+-            :label="t('CONVERSATION.RESOLVE_DROPDOWN.SNOOZE_UNTIL')"
+-            ghost
+-            slate
+-            sm
+-            start
+-            icon="i-lucide-alarm-clock-minus"
+-            class="w-full"
+-            @click="() => openSnoozeModal()"
+-          />
+-        </WootDropdownItem>
+-        <WootDropdownItem v-if="!isPending">
+-          <Button
+-            :label="t('CONVERSATION.RESOLVE_DROPDOWN.MARK_PENDING')"
+-            ghost
+-            slate
+-            sm
+-            start
+-            icon="i-lucide-circle-dot-dashed"
+-            class="w-full"
+-            @click="() => toggleStatus(wootConstants.STATUS_TYPE.PENDING)"
+-          />
+-        </WootDropdownItem>
+-        <WootDropdownItem>
+-          <Button
+-            :label="t('CONVERSATION.RESOLVE_DROPDOWN.ARCHIVE')"
+-            ghost
+-            slate
+-            sm
+-            start
+-            icon="i-lucide-archive"
+-            class="w-full"
+-            @click="() => toggleStatus(wootConstants.STATUS_TYPE.ARCHIVED)"
+-          />
+-        </WootDropdownItem>
+-      </WootDropdownMenu>
+-    </div>
+     <ConversationResolveAttributesModal
+       ref="resolveAttributesModalRef"
+       @submit="handleResolveWithAttributes"
